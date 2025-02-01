@@ -22,7 +22,7 @@ func handleCommand(command string, args []string) string {
 		return fmt.Sprintf("$%d\r\n%s\r\n", len(args[0]), args[0])
 
 	case "SET":
-		if len(args) != 2 {
+		if len(args) != 2 && len(args) != 4 {
 			return "-ERR wrong number of arguments for 'SET' command\r\n"
 		}
 
