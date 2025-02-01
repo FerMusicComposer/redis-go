@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -25,7 +26,7 @@ func main() {
 
 	reader := bufio.NewReader(conn)
 	for {
-		_, err := reader.ReadString('\n')
+		data, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -34,7 +35,14 @@ func main() {
 			break
 		}
 
-		conn.Write([]byte("+PONG\r\n"))
+		if len(data) < 2 || data[len(data)-2] != '\r' {
+			continue
+		}
+
+		commandLine := string(data[:len(data)-2])
+		if strings.ToUpper(commandLine) == "PING" {
+			conn.Write([]byte("+PONG\r\n"))
+		}
 	}
 
 	conn.Close()
