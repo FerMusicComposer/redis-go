@@ -14,7 +14,7 @@ var (
 
 func main() {
 	dir := flag.String("dir", ".", "RDB file directory")
-	dbFilename := flag.String("dbFilename", "dump.rdb", "RDB filename")
+	dbFilename := flag.String("dbfilename", "dump.rdb", "RDB filename")
 	flag.Parse()
 
 	initConfig(*dir, *dbFilename)
