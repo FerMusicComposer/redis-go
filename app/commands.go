@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -70,6 +71,27 @@ func getCommand(args []string) string {
 	}
 
 	return fmt.Sprintf("$%d\r\n%s\r\n", len(sv.value), sv.value)
+}
+
+func configCommand(args []string) string {
+	subCommand := strings.ToUpper(args[0])
+	parameter := strings.ToLower(args[1])
+
+	switch subCommand {
+	case "GET":
+		switch parameter {
+		case "dir":
+			return fmt.Sprintf("*2\r\n$3\r\ndir\r\n$%d\r\n%s\r\n",
+				len(config.dir), config.dir)
+		case "dbfilename":
+			return fmt.Sprintf("*2\r\n$10\r\ndbfilename\r\n$%d\r\n%s\r\n",
+				len(config.dbFilename), config.dbFilename)
+		default:
+			return "*0\r\n"
+		}
+	default:
+		return "-ERR unknown subcommand\r\n"
+	}
 }
 
 // func handleCommand(command string, args []string) string {

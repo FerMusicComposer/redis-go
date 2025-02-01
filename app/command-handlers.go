@@ -12,10 +12,11 @@ var registry = map[string]struct {
 	maxArgs int
 	handler CommandHandler
 }{
-	"SET":  {2, 4, setCommand},
-	"GET":  {1, 1, getCommand},
-	"PING": {0, 0, pingCommand},
-	"ECHO": {1, 1, echoCommand},
+	"SET":    {2, 4, setCommand},
+	"GET":    {1, 1, getCommand},
+	"PING":   {0, 0, pingCommand},
+	"ECHO":   {1, 1, echoCommand},
+	"CONFIG": {2, 2, configCommand},
 }
 
 func handleCommand(command string, args []string) string {

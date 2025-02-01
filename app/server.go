@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -12,7 +13,11 @@ var (
 )
 
 func main() {
-	fmt.Println("Logs from your program will appear here!")
+	dir := flag.String("dir", ".", "RDB file directory")
+	dbFilename := flag.String("dbFilename", "dump.rdb", "RDB filename")
+	flag.Parse()
+
+	initConfig(*dir, *dbFilename)
 
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
