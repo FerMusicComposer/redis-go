@@ -4,9 +4,33 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net"
 	"strconv"
 	"strings"
 )
+
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+
+	for {
+		command, args, err := parseRESPCommand(reader)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			fmt.Println("Error parsing command: ", err)
+			continue
+		}
+
+		response := handleCommand(command, args)
+		if _, err := conn.Write([]byte(response)); err != nil {
+			fmt.Println("Error writing response: ", err)
+			break
+		}
+	}
+}
 
 // parseCommandFromRESP parses a Redis RESP protocol message and returns the command + arguments
 // RESP protocol reference: https://redis.io/docs/reference/protocol-spec/

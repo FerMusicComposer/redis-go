@@ -1,11 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"net"
 	"os"
+	"sync"
+)
+
+var (
+	storage sync.Map // Thread-safe concurrent map for key-value storage
 )
 
 func main() {
@@ -25,28 +28,5 @@ func main() {
 		}
 
 		go handleConnection(conn)
-	}
-}
-
-func handleConnection(conn net.Conn) {
-	defer conn.Close()
-	reader := bufio.NewReader(conn)
-
-	for {
-		command, args, err := parseRESPCommand(reader)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-
-			fmt.Println("Error parsing command: ", err)
-			continue
-		}
-
-		response := handleCommand(command, args)
-		if _, err := conn.Write([]byte(response)); err != nil {
-			fmt.Println("Error writing response: ", err)
-			break
-		}
 	}
 }
