@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func handleConnection(conn net.Conn) {
@@ -116,4 +117,34 @@ func parseRESPInteger(s string, min int, errorFormat string) (int, error) {
 	}
 
 	return val, nil
+}
+
+// parseCommandExpiry handles the expiration time parsing for SET commands
+// Arguments format: [key, value, "PX", milliseconds]
+// Returns:
+// - expiresAt: Time when the key should expire
+// - errorResponse: RESP protocol error string if validation fails
+func parseCommandExpiry(args []string) (expiresAt time.Time, errorResponse string) {
+	// Validate we have exactly 4 arguments (key, value, option, time)
+	if len(args) != 4 {
+		return time.Time{},
+			"-ERR wrong number of arguments for SET with expiry\r\n"
+	}
+
+	// Validate option is PX (case-insensitive)
+	option := strings.ToUpper(args[2])
+	if option != "PX" {
+		return time.Time{},
+			"-ERR unsupported option\r\n"
+	}
+
+	// Parse milliseconds value
+	ms, err := strconv.ParseInt(args[3], 10, 64)
+	if err != nil || ms <= 0 {
+		return time.Time{},
+			"-ERR invalid expiry time\r\n"
+	}
+
+	// Calculate absolute expiration time
+	return time.Now().Add(time.Duration(ms) * time.Millisecond), ""
 }
