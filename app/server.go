@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -26,6 +27,9 @@ func main() {
 	for {
 		_, err := reader.ReadString('\n')
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			fmt.Println("Error reading from connection: ", err.Error())
 			break
 		}
