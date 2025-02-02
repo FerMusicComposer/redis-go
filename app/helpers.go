@@ -243,33 +243,25 @@ func readStringEncoded(r io.Reader) (string, error) {
 	// Check if the first two bits of the first byte are 11 (0xC0 or 0b11000000).
 	// This indicates a special encoding for integers.
 	if (firstByte & 0xC0) == 0xC0 {
-		// If it's a special encoding, switch on the lower 6 bits of the first byte (0x3F or 0b00111111).
-		switch firstByte & 0x3F {
-		case 0: // If the lower 6 bits are 0, it's an 8-bit integer.
-			// Read the next byte.
+		lengthType := firstByte & 0x3F // Mask out first two bits
+		switch lengthType {
+		case 0: // 8-bit integer
 			b, err := readByte(r)
-			// Convert the byte to an integer and then to a string, and return it.
 			return strconv.Itoa(int(b)), err
-		case 1: // If the lower 6 bits are 1, it's a 16-bit integer.
-			// Create a byte slice to hold the next 2 bytes.
+		case 1: // 16-bit integer (little-endian)
 			bytes := make([]byte, 2)
-			// Read the next 2 bytes into the byte slice.
 			if _, err := io.ReadFull(r, bytes); err != nil {
 				return "", err
 			}
-			// Convert the 2 bytes to a little-endian uint16, then to an int, then to a string, and return it.
 			return strconv.Itoa(int(binary.LittleEndian.Uint16(bytes))), nil
-		case 2: // If the lower 6 bits are 2, it's a 32-bit integer.
-			// Create a byte slice to hold the next 4 bytes.
+		case 2: // 32-bit integer (little-endian)
 			bytes := make([]byte, 4)
-			// Read the next 4 bytes into the byte slice.
 			if _, err := io.ReadFull(r, bytes); err != nil {
 				return "", err
 			}
-			// Convert the 4 bytes to a little-endian uint32, then to an int, then to a string, and return it.
 			return strconv.Itoa(int(binary.LittleEndian.Uint32(bytes))), nil
-		default: // If the lower 6 bits are not 0, 1, or 2, it's an unsupported encoding.
-			return "", fmt.Errorf("unsupported string encoding: %x", firstByte)
+		default:
+			return "", fmt.Errorf("unsupported integer encoding: %x", firstByte)
 		}
 	}
 
