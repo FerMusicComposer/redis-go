@@ -17,6 +17,7 @@ var registry = map[string]struct {
 	"PING":   {0, 0, pingCommand},
 	"ECHO":   {1, 1, echoCommand},
 	"CONFIG": {2, 2, configCommand},
+	"KEY":    {1, 1, keysCommand},
 }
 
 func handleCommand(command string, args []string) string {
