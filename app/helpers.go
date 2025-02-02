@@ -233,59 +233,79 @@ func readSizeEncoded(r io.Reader) (uint32, error) {
 // - The decoded string.
 // - An error if reading fails or the encoding is invalid.
 func readStringEncoded(r io.Reader) (string, error) {
-	// Read the encoded length of the string.
-	length, err := readSizeEncoded(r)
+	// Read the first byte from the io.Reader. This byte contains information about the string's encoding.
+	firstByte, err := readByte(r)
+	// If there's an error reading the byte, return an empty string and the error.
 	if err != nil {
-		// If there was an error reading the length, return an empty string and the error.
 		return "", err
 	}
 
-	// Use a switch statement to handle different string encoding types based on the two most significant bits of the length.
-	switch length >> 6 {
-	case 0, 1, 2:
-		// If the two most significant bits are 00, 01, or 10, the length is directly the length of the string.
-		// Create a byte slice with the specified length.
-		buf := make([]byte, length)
-		// Read the exact number of bytes specified by the length into the buffer.
-		if _, err := io.ReadFull(r, buf); err != nil {
-			// If there was an error reading the bytes, return an empty string and the error.
+	// Check if the first two bits of the first byte are 11 (0xC0 or 0b11000000).
+	// This indicates a special encoding for integers.
+	if (firstByte & 0xC0) == 0xC0 {
+		// If it's a special encoding, switch on the lower 6 bits of the first byte (0x3F or 0b00111111).
+		switch firstByte & 0x3F {
+		case 0: // If the lower 6 bits are 0, it's an 8-bit integer.
+			// Read the next byte.
+			b, err := readByte(r)
+			// Convert the byte to an integer and then to a string, and return it.
+			return strconv.Itoa(int(b)), err
+		case 1: // If the lower 6 bits are 1, it's a 16-bit integer.
+			// Create a byte slice to hold the next 2 bytes.
+			bytes := make([]byte, 2)
+			// Read the next 2 bytes into the byte slice.
+			if _, err := io.ReadFull(r, bytes); err != nil {
+				return "", err
+			}
+			// Convert the 2 bytes to a little-endian uint16, then to an int, then to a string, and return it.
+			return strconv.Itoa(int(binary.LittleEndian.Uint16(bytes))), nil
+		case 2: // If the lower 6 bits are 2, it's a 32-bit integer.
+			// Create a byte slice to hold the next 4 bytes.
+			bytes := make([]byte, 4)
+			// Read the next 4 bytes into the byte slice.
+			if _, err := io.ReadFull(r, bytes); err != nil {
+				return "", err
+			}
+			// Convert the 4 bytes to a little-endian uint32, then to an int, then to a string, and return it.
+			return strconv.Itoa(int(binary.LittleEndian.Uint32(bytes))), nil
+		default: // If the lower 6 bits are not 0, 1, or 2, it's an unsupported encoding.
+			return "", fmt.Errorf("unsupported string encoding: %x", firstByte)
+		}
+	}
+
+	// If it's not a special encoding, it's a regular string with a length prefix.
+	var length uint32
+	// Switch on the first two bits of the first byte to determine how the length is encoded.
+	switch firstByte >> 6 {
+	case 0: // If the first two bits are 00, the length is in the lower 6 bits of the first byte.
+		length = uint32(firstByte & 0x3F)
+	case 1: // If the first two bits are 01, the length is in the lower 6 bits of the first byte and the next byte.
+		// Read the second byte.
+		secondByte, err := readByte(r)
+		if err != nil {
 			return "", err
 		}
-
-		// Convert the byte slice to a string and return it.
-		return string(buf), nil
-	case 3:
-		// If the two most significant bits are 11, the lower 6 bits of the length determine the type of number to read.
-		switch length & 0x3f {
-		case 0:
-			// If the lower 6 bits are 00, read a single byte and convert it to a string.
-			b, err := readByte(r)
-			// If there was an error reading the byte, return an empty string and the error.
-			return strconv.Itoa(int(b)), err
-		case 1:
-			// If the lower 6 bits are 01, read 2 bytes and convert them to a little-endian uint16, then to a string.
-			bytes := make([]byte, 2)
-			if _, err := io.ReadFull(r, bytes); err != nil {
-				// If there was an error reading the bytes, return an empty string and the error.
-				return "", err
-			}
-
-			return strconv.Itoa(int(binary.LittleEndian.Uint16(bytes))), nil
-		case 2:
-			// If the lower 6 bits are 10, read 4 bytes and convert them to a little-endian uint32, then to a string.
-			bytes := make([]byte, 4)
-			if _, err := io.ReadFull(r, bytes); err != nil {
-				// If there was an error reading the bytes, return an empty string and the error.
-				return "", err
-			}
-
-			return strconv.Itoa(int(binary.LittleEndian.Uint32(bytes))), nil
-		default:
-			// If the lower 6 bits are not 00, 01, or 10, the encoding is unsupported.
-			return "", fmt.Errorf("unsuported string encoding")
+		// Combine the lower 6 bits of the first byte (shifted left by 8 bits) with the second byte to get the length.
+		length = uint32(firstByte&0x3F)<<8 | uint32(secondByte)
+	case 2: // If the first two bits are 10, the length is in the next 4 bytes as a big-endian uint32.
+		// Create a byte slice to hold the next 4 bytes.
+		bytes := make([]byte, 4)
+		// Read the next 4 bytes into the byte slice.
+		if _, err := io.ReadFull(r, bytes); err != nil {
+			return "", err
 		}
-	default:
-		// If the two most significant bits are not 00, 01, 10, or 11, the encoding is invalid.
-		return "", fmt.Errorf("invalid string encoding")
+		// Convert the 4 bytes to a big-endian uint32 to get the length.
+		length = binary.BigEndian.Uint32(bytes)
+	default: // If the first two bits are 11, the encoding is invalid.
+		return "", fmt.Errorf("invalid size encoding")
 	}
+
+	// Create a byte slice of the determined length.
+	buf := make([]byte, length)
+	// Read the string bytes into the buffer.
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return "", err
+	}
+	// Convert the byte slice to a string and return it.
+	return string(buf), nil
 }
