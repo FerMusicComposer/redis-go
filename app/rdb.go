@@ -91,10 +91,6 @@ func parseDatabase(file io.ReadSeeker) error {
 		return err
 	}
 
-	if _, err := readSizeEncoded(file); err != nil {
-		return err
-	}
-
 	// Skip 0xFB 0x01 if present
 	b, err := readByte(file)
 	if err != nil {
@@ -105,9 +101,20 @@ func parseDatabase(file io.ReadSeeker) error {
 		if err != nil {
 			return err
 		}
+
+		if _, err := readSizeEncoded(file); err != nil {
+			return err
+		}
 	} else {
 		// if it wasn't 0xFB, put the byte back for the next stage
 		if _, err := file.Seek(-1, io.SeekCurrent); err != nil {
+			return err
+		}
+		// Put the stream dict size byte back too!
+		if _, err := file.Seek(-1, io.SeekCurrent); err != nil {
+			return err
+		}
+		if _, err := readSizeEncoded(file); err != nil { // Stream dict size -- PROBLEM!
 			return err
 		}
 	}
