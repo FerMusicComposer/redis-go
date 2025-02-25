@@ -95,6 +95,8 @@ func parseDatabase(file io.Reader) error {
 
 	for {
 		var expiresAt time.Time
+		var valueType byte
+
 		b, err := readByte(file)
 		if err != nil {
 			return err
@@ -107,20 +109,25 @@ func parseDatabase(file io.Reader) error {
 				return err
 			}
 			expiresAt = time.Unix(int64(binary.LittleEndian.Uint32(expiresBytes)), 0)
+
+			valueType, err = readByte(file)
+			if err != nil {
+				return err
+			}
 		case 0xFC: // Expire time in milliseconds
 			expiresBytes := make([]byte, 8)
 			if _, err := io.ReadFull(file, expiresBytes); err != nil {
 				return err
 			}
 			expiresAt = time.Unix(0, int64(binary.LittleEndian.Uint64(expiresBytes))*int64(time.Millisecond))
+
+			valueType, err = readByte(file)
+			if err != nil {
+				return err
+			}
 		default:
 			// Put the byte back and continue
-			file = io.MultiReader(bytes.NewReader([]byte{b}), file)
-		}
-
-		valueType, err := readByte(file)
-		if err != nil {
-			return err
+			valueType = b
 		}
 
 		// For this stage, we only handle string values (type 0)
