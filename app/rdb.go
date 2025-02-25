@@ -50,6 +50,7 @@ func loadRDBFile() error {
 			if err := parseDatabase(file); err != nil {
 				return err
 			}
+			return nil
 		case 0xFF:
 			return nil
 		default:
