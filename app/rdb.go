@@ -146,6 +146,8 @@ func parseDatabase(file io.ReadSeeker) error {
 			if err != nil {
 				return err
 			}
+		case 0xFF: // Eend of RDB file
+			return nil
 		default:
 			// Put the byte back and continue
 			valueType = b
