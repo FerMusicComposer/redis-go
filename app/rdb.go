@@ -90,8 +90,11 @@ func parseDatabase(file io.ReadSeeker) error {
 	if _, err := readSizeEncoded(file); err != nil {
 		return err
 	}
-	if _, err := readSizeEncoded(file); err != nil {
+
+	if streamDictSize, err := readSizeEncoded(file); err != nil {
 		return err
+	} else if streamDictSize != 0 {
+		return fmt.Errorf("invalid stream dictionay size: %d", streamDictSize)
 	}
 
 	// Skip 0xFB 0x01 if present
