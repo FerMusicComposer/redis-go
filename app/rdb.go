@@ -91,10 +91,8 @@ func parseDatabase(file io.ReadSeeker) error {
 		return err
 	}
 
-	if streamDictSize, err := readSizeEncoded(file); err != nil {
+	if _, err := readSizeEncoded(file); err != nil {
 		return err
-	} else if streamDictSize != 0 {
-		return fmt.Errorf("invalid stream dictionay size: %d", streamDictSize)
 	}
 
 	// Skip 0xFB 0x01 if present
@@ -116,13 +114,13 @@ func parseDatabase(file io.ReadSeeker) error {
 
 	for {
 		var expiresAt time.Time
-		var valueType byte
 
 		b, err := readByte(file)
 		if err != nil {
 			return err
 		}
 
+		var valueType byte
 		switch b {
 		case 0xFD: // Expire time in seconds
 			expiresBytes := make([]byte, 4)
@@ -175,6 +173,5 @@ func parseDatabase(file io.ReadSeeker) error {
 				expiresAt: expiresAt,
 			})
 		}
-
 	}
 }
