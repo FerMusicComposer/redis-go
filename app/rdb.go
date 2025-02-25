@@ -110,13 +110,6 @@ func parseDatabase(file io.ReadSeeker) error {
 		if _, err := file.Seek(-1, io.SeekCurrent); err != nil {
 			return err
 		}
-		// Put the stream dict size byte back too!
-		if _, err := file.Seek(-1, io.SeekCurrent); err != nil {
-			return err
-		}
-		if _, err := readSizeEncoded(file); err != nil { // Stream dict size -- PROBLEM!
-			return err
-		}
 	}
 
 	for {
