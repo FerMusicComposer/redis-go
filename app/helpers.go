@@ -160,8 +160,15 @@ func parseCommandExpiry(args []string) (expiresAt time.Time, errorResponse strin
 // - An error if reading fails.
 func readByte(r io.Reader) (byte, error) {
 	b := make([]byte, 1)
-	_, err := r.Read(b)
-	return b[0], err
+	n, err := r.Read(b)
+	if err != nil {
+		return 0, fmt.Errorf("error reading byte: %w", err)
+	}
+	if n != 1 {
+		return 0, fmt.Errorf("expected to read 1 byte, got %d", n)
+	}
+	fmt.Printf("DEBUG: Read byte: 0x%x\n", b[0])
+	return b[0], nil
 }
 
 // readSizeEncoded reads a size-encoded integer from the provided io.Reader.
