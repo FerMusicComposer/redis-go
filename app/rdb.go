@@ -55,6 +55,13 @@ func loadRDBFile() error {
 			if err := parseMetadata(file); err != nil {
 				return fmt.Errorf("error parsing metadata: %w", err)
 			}
+		case 0xC0: // Handle redis-bits metadata
+			fmt.Println("DEBUG: Found redis-bits metadata (0xC0)")
+			valueByte, err := readByte(file)
+			if err != nil {
+				return fmt.Errorf("error reading redis-bits value: %w", err)
+			}
+			fmt.Printf("DEBUG: Redis-bits value: 0x%x\n", valueByte)
 		case 0xFE:
 			fmt.Println("DEBUG: Found database section (0xFE)")
 			if err := parseDatabase(file); err != nil {
@@ -101,30 +108,9 @@ func parseDatabase(file io.ReadSeeker) error {
 		return fmt.Errorf("failed to read database selector: %w", err)
 	}
 
-	// Step 2: Handle redis-bits metadata (0xC0 0x40)
-	// This metadata indicates the number of bits used for encoding
-	b, err := readByte(file)
-	if err != nil {
-		return fmt.Errorf("failed to read redis-bits metadata byte: %w", err)
-	}
-	if b == 0xC0 { // Special encoding for redis-bits
-		// Read the value byte (0x40 in this case)
-		valueByte, err := readByte(file)
-		if err != nil {
-			return fmt.Errorf("failed to read redis-bits value byte: %w", err)
-		}
-		// Log the redis-bits value for debugging
-		fmt.Printf("DEBUG: Found redis-bits metadata with value: 0x%x\n", valueByte)
-	} else {
-		// If it wasn't 0xC0, put the byte back for the next stage
-		if _, err := file.Seek(-1, io.SeekCurrent); err != nil {
-			return fmt.Errorf("failed to seek back after redis-bits check: %w", err)
-		}
-	}
-
-	// Step 3: Handle stream dictionary (0xFB 0x01)
+	// Step 2: Handle stream dictionary (0xFB 0x01)
 	// This indicates the presence of a stream dictionary in the RDB file
-	b, err = readByte(file)
+	b, err := readByte(file)
 	if err != nil {
 		return fmt.Errorf("failed to read stream dictionary marker: %w", err)
 	}
@@ -155,7 +141,7 @@ func parseDatabase(file io.ReadSeeker) error {
 		}
 	}
 
-	// Step 4: Parse key-value pairs
+	// Step 3: Parse key-value pairs
 	// This is the main data section of the RDB file
 	for {
 		var expiresAt time.Time
@@ -207,13 +193,13 @@ func parseDatabase(file io.ReadSeeker) error {
 			valueType = b
 		}
 
-		// Step 5: Validate value type
+		// Step 4: Validate value type
 		// For this stage, we only handle string values (type 0)
 		if valueType != 0 {
 			return fmt.Errorf("unsupported value type: 0x%x", valueType)
 		}
 
-		// Step 6: Read key and value
+		// Step 5: Read key and value
 		key, err := readStringEncoded(file)
 		if err != nil {
 			return fmt.Errorf("failed to read key: %w", err)
@@ -225,7 +211,7 @@ func parseDatabase(file io.ReadSeeker) error {
 
 		fmt.Printf("DEBUG: Loaded key-value pair: key=%s, value=%s\n", key, value)
 
-		// Step 7: Store in memory (only if not expired)
+		// Step 6: Store in memory (only if not expired)
 		if expiresAt.IsZero() || time.Now().Before(expiresAt) {
 			storage.Store(key, storedValue{
 				value:     value,
