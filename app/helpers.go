@@ -233,17 +233,19 @@ func readSizeEncoded(r io.Reader) (uint32, error) {
 // - The decoded string.
 // - An error if reading fails or the encoding is invalid.
 func readStringEncoded(r io.Reader) (string, error) {
-	// Read the first byte from the io.Reader. This byte contains information about the string's encoding.
+	// Step 1: Read the first byte which contains the encoding information
 	firstByte, err := readByte(r)
-	// If there's an error reading the byte, return an empty string and the error.
 	if err != nil {
 		return "", err
 	}
 
-	// Check if the first two bits of the first byte are 11 (0xC0 or 0b11000000).
-	// This indicates a special encoding for integers.
+	// Step 2: Check if this is a special integer encoding (first two bits are 11)
+	// This is used for compact storage of small integers in Redis
 	if (firstByte & 0xC0) == 0xC0 {
-		lengthType := firstByte & 0x3F // Mask out first two bits
+		// Extract the integer type from the lower 6 bits
+		lengthType := firstByte & 0x3F
+
+		// Handle different integer sizes
 		switch lengthType {
 		case 0: // 8-bit integer
 			b, err := readByte(r)
@@ -265,39 +267,39 @@ func readStringEncoded(r io.Reader) (string, error) {
 		}
 	}
 
-	// If it's not a special encoding, it's a regular string with a length prefix.
+	// Step 3: If not an integer, it's a length-prefixed string
 	var length uint32
-	// Switch on the first two bits of the first byte to determine how the length is encoded.
+
+	// Step 4: Determine the length encoding based on the first two bits
 	switch firstByte >> 6 {
-	case 0: // If the first two bits are 00, the length is in the lower 6 bits of the first byte.
+	case 0:
+		// Simple 6-bit length (0-63)
 		length = uint32(firstByte & 0x3F)
-	case 1: // If the first two bits are 01, the length is in the lower 6 bits of the first byte and the next byte.
-		// Read the second byte.
+	case 1:
+		// 14-bit length (64-16383)
 		secondByte, err := readByte(r)
 		if err != nil {
 			return "", err
 		}
-		// Combine the lower 6 bits of the first byte (shifted left by 8 bits) with the second byte to get the length.
+		// Combine lower 6 bits of first byte with second byte
 		length = uint32(firstByte&0x3F)<<8 | uint32(secondByte)
-	case 2: // If the first two bits are 10, the length is in the next 4 bytes as a big-endian uint32.
-		// Create a byte slice to hold the next 4 bytes.
+	case 2:
+		// 32-bit length (big-endian)
 		bytes := make([]byte, 4)
-		// Read the next 4 bytes into the byte slice.
 		if _, err := io.ReadFull(r, bytes); err != nil {
 			return "", err
 		}
-		// Convert the 4 bytes to a big-endian uint32 to get the length.
 		length = binary.BigEndian.Uint32(bytes)
-	default: // If the first two bits are 11, the encoding is invalid.
+	default:
 		return "", fmt.Errorf("invalid size encoding")
 	}
 
-	// Create a byte slice of the determined length.
+	// Step 5: Read the actual string data
 	buf := make([]byte, length)
-	// Read the string bytes into the buffer.
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return "", err
 	}
-	// Convert the byte slice to a string and return it.
+
+	// Step 6: Convert bytes to string and return
 	return string(buf), nil
 }
