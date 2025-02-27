@@ -93,10 +93,7 @@ func parseMetadata(file io.Reader) error {
 		return fmt.Errorf("metadata value read error: %w", err)
 	}
 
-	// discarding for current stage
-	_ = name
-	_ = value
-
+	fmt.Printf("DEBUG: Parsed metadata - name=%s, value=%s\n", name, value)
 	return nil
 }
 
