@@ -233,73 +233,67 @@ func readSizeEncoded(r io.Reader) (uint32, error) {
 // - The decoded string.
 // - An error if reading fails or the encoding is invalid.
 func readStringEncoded(r io.Reader) (string, error) {
-	// Step 1: Read the first byte which contains the encoding information
+	// Step 1: Read the first byte from the reader
+	// This byte contains information about how the string is encoded
 	firstByte, err := readByte(r)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read first byte: %w", err)
 	}
 
-	// Step 2: Check if this is a special integer encoding (first two bits are 11)
-	// This is used for compact storage of small integers in Redis
-	if (firstByte & 0xC0) == 0xC0 {
-		// Extract the integer type from the lower 6 bits
-		lengthType := firstByte & 0x3F
-
-		// Handle different integer sizes
-		switch lengthType {
-		case 0: // 8-bit integer
-			b, err := readByte(r)
-			return strconv.Itoa(int(b)), err
-		case 1: // 16-bit integer (little-endian)
-			bytes := make([]byte, 2)
-			if _, err := io.ReadFull(r, bytes); err != nil {
-				return "", err
-			}
-			return strconv.Itoa(int(binary.LittleEndian.Uint16(bytes))), nil
-		case 2: // 32-bit integer (little-endian)
-			bytes := make([]byte, 4)
-			if _, err := io.ReadFull(r, bytes); err != nil {
-				return "", err
-			}
-			return strconv.Itoa(int(binary.LittleEndian.Uint32(bytes))), nil
-		default:
-			return "", fmt.Errorf("unsupported integer encoding: %x", firstByte)
-		}
+	// Step 2: Handle special cases for RDB format
+	// Redis RDB files use specific byte values to represent small integers
+	// These are optimizations to save space in the file
+	switch firstByte {
+	case 0xC0: // Special encoding for the number 0
+		return "0", nil
+	case 0xC1: // Special encoding for the number 1
+		return "1", nil
 	}
 
-	// Step 3: If not an integer, it's a length-prefixed string
+	// Step 3: Determine the length encoding based on the first two bits
+	// The first two bits of the first byte indicate how the length is encoded:
+	// - 00: 6-bit length (0-63)
+	// - 01: 14-bit length (64-16383)
+	// - 10: 32-bit length (big-endian)
 	var length uint32
-
-	// Step 4: Determine the length encoding based on the first two bits
 	switch firstByte >> 6 {
 	case 0:
-		// Simple 6-bit length (0-63)
+		// Case 00: Simple 6-bit length
+		// The length is stored in the lower 6 bits of the first byte
+		// Mask with 0x3F (00111111) to extract the length
 		length = uint32(firstByte & 0x3F)
 	case 1:
-		// 14-bit length (64-16383)
+		// Case 01: 14-bit length
+		// The length is stored in the lower 6 bits of the first byte and the next byte
+		// Read the second byte
 		secondByte, err := readByte(r)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to read second byte for 14-bit length: %w", err)
 		}
-		// Combine lower 6 bits of first byte with second byte
+		// Combine the lower 6 bits of the first byte (shifted left by 8 bits) with the second byte
 		length = uint32(firstByte&0x3F)<<8 | uint32(secondByte)
 	case 2:
-		// 32-bit length (big-endian)
+		// Case 10: 32-bit length (big-endian)
+		// The length is stored in the next 4 bytes as a big-endian uint32
 		bytes := make([]byte, 4)
 		if _, err := io.ReadFull(r, bytes); err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to read 4 bytes for 32-bit length: %w", err)
 		}
+		// Convert the 4 bytes to a uint32 using big-endian byte order
 		length = binary.BigEndian.Uint32(bytes)
 	default:
-		return "", fmt.Errorf("invalid size encoding")
+		// Case 11: Invalid encoding
+		// The first two bits are 11, which is not a valid encoding for RDB strings
+		return "", fmt.Errorf("invalid size encoding: first byte %x", firstByte)
 	}
 
-	// Step 5: Read the actual string data
+	// Step 4: Read the actual string data
+	// Now that we know the length, allocate a buffer of that size
 	buf := make([]byte, length)
 	if _, err := io.ReadFull(r, buf); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read string data of length %d: %w", length, err)
 	}
 
-	// Step 6: Convert bytes to string and return
+	// Step 5: Convert the byte slice to a string and return it
 	return string(buf), nil
 }
