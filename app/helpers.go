@@ -234,15 +234,12 @@ func readSizeEncoded(r io.Reader) (uint32, error) {
 // - An error if reading fails or the encoding is invalid.
 func readStringEncoded(r io.Reader) (string, error) {
 	// Step 1: Read the first byte from the reader
-	// This byte contains information about how the string is encoded
 	firstByte, err := readByte(r)
 	if err != nil {
 		return "", fmt.Errorf("failed to read first byte: %w", err)
 	}
 
 	// Step 2: Handle special cases for RDB format
-	// Redis RDB files use specific byte values to represent small integers
-	// These are optimizations to save space in the file
 	switch firstByte {
 	case 0xC0: // Special encoding for the number 0
 		return "0", nil
@@ -251,44 +248,30 @@ func readStringEncoded(r io.Reader) (string, error) {
 	}
 
 	// Step 3: Determine the length encoding based on the first two bits
-	// The first two bits of the first byte indicate how the length is encoded:
-	// - 00: 6-bit length (0-63)
-	// - 01: 14-bit length (64-16383)
-	// - 10: 32-bit length (big-endian)
 	var length uint32
 	switch firstByte >> 6 {
-	case 0:
-		// Case 00: Simple 6-bit length
-		// The length is stored in the lower 6 bits of the first byte
-		// Mask with 0x3F (00111111) to extract the length
+	case 0: // 6-bit length (0-63)
 		length = uint32(firstByte & 0x3F)
-	case 1:
-		// Case 01: 14-bit length
-		// The length is stored in the lower 6 bits of the first byte and the next byte
-		// Read the second byte
+		fmt.Printf("DEBUG: Read 6-bit length: %d\n", length)
+	case 1: // 14-bit length (64-16383)
 		secondByte, err := readByte(r)
 		if err != nil {
 			return "", fmt.Errorf("failed to read second byte for 14-bit length: %w", err)
 		}
-		// Combine the lower 6 bits of the first byte (shifted left by 8 bits) with the second byte
 		length = uint32(firstByte&0x3F)<<8 | uint32(secondByte)
-	case 2:
-		// Case 10: 32-bit length (big-endian)
-		// The length is stored in the next 4 bytes as a big-endian uint32
+		fmt.Printf("DEBUG: Read 14-bit length: %d\n", length)
+	case 2: // 32-bit length (big-endian)
 		bytes := make([]byte, 4)
 		if _, err := io.ReadFull(r, bytes); err != nil {
 			return "", fmt.Errorf("failed to read 4 bytes for 32-bit length: %w", err)
 		}
-		// Convert the 4 bytes to a uint32 using big-endian byte order
 		length = binary.BigEndian.Uint32(bytes)
-	default:
-		// Case 11: Invalid encoding
-		// The first two bits are 11, which is not a valid encoding for RDB strings
+		fmt.Printf("DEBUG: Read 32-bit length: %d\n", length)
+	default: // Invalid encoding
 		return "", fmt.Errorf("invalid size encoding: first byte %x", firstByte)
 	}
 
 	// Step 4: Read the actual string data
-	// Now that we know the length, allocate a buffer of that size
 	buf := make([]byte, length)
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return "", fmt.Errorf("failed to read string data of length %d: %w", length, err)
