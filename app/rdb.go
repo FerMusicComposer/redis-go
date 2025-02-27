@@ -12,52 +12,64 @@ import (
 
 func loadRDBFile() error {
 	path := filepath.Join(config.dir, config.dbFilename)
+	fmt.Printf("DEBUG: Loading RDB file from path: %s\n", path)
+
 	file, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			fmt.Println("DEBUG: RDB file does not exist, starting with empty database")
 			return nil
 		}
-
 		return fmt.Errorf("error opening RDB file: %w", err)
 	}
 	defer file.Close()
 
+	// Read and verify header
 	header := make([]byte, 9)
 	if _, err := io.ReadFull(file, header); err != nil {
 		return fmt.Errorf("error reading header: %w", err)
 	}
+	fmt.Printf("DEBUG: Read RDB header: %x\n", header)
 
 	if !bytes.Equal(header, []byte("REDIS0011")) {
 		return fmt.Errorf("invalid RDB header: %q", header)
 	}
+	fmt.Println("DEBUG: RDB header is valid")
 
+	// Parse file contents
 	for {
 		b, err := readByte(file)
 		if err != nil {
 			if err == io.EOF {
+				fmt.Println("DEBUG: Reached end of RDB file")
 				break
 			}
-
-			return err
+			return fmt.Errorf("error reading byte: %w", err)
 		}
+
+		fmt.Printf("DEBUG: Processing byte: 0x%x\n", b)
 
 		switch b {
 		case 0xFA:
+			fmt.Println("DEBUG: Found metadata section (0xFA)")
 			if err := parseMetadata(file); err != nil {
-				return err
+				return fmt.Errorf("error parsing metadata: %w", err)
 			}
 		case 0xFE:
+			fmt.Println("DEBUG: Found database section (0xFE)")
 			if err := parseDatabase(file); err != nil {
-				return err
+				return fmt.Errorf("error parsing database: %w", err)
 			}
 			return nil
 		case 0xFF:
+			fmt.Println("DEBUG: Found end of RDB file marker (0xFF)")
 			return nil
 		default:
 			return fmt.Errorf("unexpected byte: %x", b)
 		}
 	}
 
+	fmt.Println("DEBUG: Successfully loaded RDB file")
 	return nil
 }
 
