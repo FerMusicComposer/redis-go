@@ -102,7 +102,13 @@ func parseDatabase(file io.ReadSeeker) error {
 			return err
 		}
 
-		if _, err := readSizeEncoded(file); err != nil {
+		streamDictSize, err := readSizeEncoded(file)
+		if err != nil {
+			return err
+		}
+
+		_, err = file.Seek(int64(streamDictSize), io.SeekCurrent)
+		if err != nil {
 			return err
 		}
 	} else {
