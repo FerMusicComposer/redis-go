@@ -47,6 +47,22 @@ func setCommand(args []string) string {
 	return "+OK\r\n"
 }
 
+// getCommand handles the GET command which retrieves the value of a key.
+//
+// Parameters:
+//   - args: Command arguments where args[0] is the key to retrieve
+//
+// Returns:
+//   - RESP (Redis Serialization Protocol) formatted string:
+//   - For existing key: "$<length>\r\n<value>\r\n"
+//   - For non-existing key: "$-1\r\n" (null bulk string)
+//   - For expired key: "$-1\r\n" (null bulk string)
+//   - For invalid data: "$-1\r\n" (null bulk string)
+//
+// Example:
+//
+//	Input: ["foo"]
+//	Output: "$3\r\nbar\r\n" (if key "foo" has value "bar")
 func getCommand(args []string) string {
 	if len(args) != 1 {
 		return "-ERR wrong number of arguments for 'GET' command\r\n"

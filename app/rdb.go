@@ -95,6 +95,28 @@ func parseMetadata(file io.Reader) error {
 	return nil
 }
 
+// parseDatabase processes the database section of an RDB file, loading key-value pairs
+// into memory storage. It handles both regular and expired keys.
+//
+// Parameters:
+//   - file: The RDB file reader positioned at the start of a database section
+//
+// Returns:
+//   - error: If any parsing or I/O error occurs
+//
+// Behavior:
+//   - Reads key-value pairs until end of database section
+//   - Handles expiration timestamps (seconds and milliseconds precision)
+//   - Only stores keys that are not expired
+//   - Supports string values (type 0)
+//   - Skips invalid or unsupported value types
+//
+// Example:
+//
+//	For an RDB file containing:
+//	  - Key "foo" with value "bar"
+//	  - Key "exp" with value "soon" and expiration time
+//	It will load "foo" into storage and skip "exp" if expired
 func parseDatabase(file io.ReadSeeker) error {
 	// Step 1: Read database selector (0xFE 0x00)
 	// This indicates the start of a new database in the RDB file
