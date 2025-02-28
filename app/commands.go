@@ -49,7 +49,7 @@ func setCommand(args []string) string {
 
 func getCommand(args []string) string {
 	if len(args) != 1 {
-		return "-ERR wrong number of arguments for 'SET' command\r\n"
+		return "-ERR wrong number of arguments for 'GET' command\r\n"
 	}
 
 	val, ok := storage.Load(args[0])
