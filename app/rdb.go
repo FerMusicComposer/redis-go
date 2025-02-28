@@ -208,7 +208,7 @@ func parseDatabase(file io.ReadSeeker) error {
 
 		// Step 6: Store in memory (only if not expired)
 		if expiresAt.IsZero() || time.Now().Before(expiresAt) {
-			storage.Store(key, storedValue{
+			storage.Store(key, &storedValue{
 				value:     value,
 				expiresAt: expiresAt,
 			})
