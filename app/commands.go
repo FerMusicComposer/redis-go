@@ -94,6 +94,21 @@ func configCommand(args []string) string {
 	}
 }
 
+// keysCommand handles the KEYS command which returns all keys matching a pattern.
+// Currently, it only supports the "*" pattern which matches all keys.
+//
+// Parameters:
+//   - args: Command arguments where args[0] is the pattern to match
+//
+// Returns:
+//   - RESP (Redis Serialization Protocol) formatted string:
+//   - For successful match: "*<count>\r\n$<length>\r\n<key>\r\n..." for each key
+//   - For unsupported pattern: "-ERR pattern not supported\r\n"
+//
+// Example:
+//
+//	Input: ["*"]
+//	Output: "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n" (for keys "foo" and "bar")
 func keysCommand(args []string) string {
 	if args[0] != "*" {
 		return "-ERR pattern not supported\r\n"
