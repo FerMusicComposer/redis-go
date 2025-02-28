@@ -55,27 +55,6 @@ func loadRDBFile() error {
 			if err := parseMetadata(file); err != nil {
 				return fmt.Errorf("error parsing metadata: %w", err)
 			}
-
-			// After parsing metadata, check if the next byte is 0xC0 (redis-bits)
-			nextByte, err := readByte(file)
-			if err != nil {
-				return fmt.Errorf("error reading next byte after metadata: %w", err)
-			}
-
-			if nextByte == 0xC0 {
-				fmt.Println("DEBUG: Found redis-bits metadata (0xC0)")
-				valueByte, err := readByte(file)
-				if err != nil {
-					return fmt.Errorf("error reading redis-bits value: %w", err)
-				}
-				fmt.Printf("DEBUG: Redis-bits value: 0x%x\n", valueByte)
-			} else {
-				// If it's not 0xC0, put the byte back for the next stage
-				if _, err := file.Seek(-1, io.SeekCurrent); err != nil {
-					return fmt.Errorf("failed to seek back after redis-bits check: %w", err)
-				}
-
-			}
 		case 0xFE:
 			fmt.Println("DEBUG: Found database section (0xFE)")
 			if err := parseDatabase(file); err != nil {
@@ -85,6 +64,11 @@ func loadRDBFile() error {
 		case 0xFF:
 			fmt.Println("DEBUG: Found end of RDB file marker (0xFF)")
 			return nil
+		case 0xFB, 0x00, 0x40:
+			// Skip these bytes or handle them more gracefully
+			fmt.Printf("DEBUG: Skipping byte: 0x%x\n", b)
+			continue
+
 		default:
 			return fmt.Errorf("unexpected byte: %x", b)
 		}
