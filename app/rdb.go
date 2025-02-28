@@ -178,7 +178,8 @@ func parseDatabase(file io.ReadSeeker) error {
 				return fmt.Errorf("failed to read expiration time (seconds): %w", err)
 			}
 			expiresAt = time.Unix(int64(binary.LittleEndian.Uint32(expiresBytes)), 0)
-			fmt.Printf("DEBUG: Found key with expiration (seconds): %v\n", expiresAt)
+			fmt.Printf("DEBUG: Found key with expiration (seconds): %v, current time: %v\n",
+				expiresAt, time.Now())
 
 			// Read the value type byte
 			valueType, err = readByte(file)
@@ -193,7 +194,8 @@ func parseDatabase(file io.ReadSeeker) error {
 				return fmt.Errorf("failed to read expiration time (milliseconds): %w", err)
 			}
 			expiresAt = time.Unix(0, int64(binary.LittleEndian.Uint64(expiresBytes))*int64(time.Millisecond))
-			fmt.Printf("DEBUG: Found key with expiration (milliseconds): %v\n", expiresAt)
+			fmt.Printf("DEBUG: Found key with expiration (milliseconds): %v, current time: %v\n",
+				expiresAt, time.Now())
 
 			// Read the value type byte
 			valueType, err = readByte(file)

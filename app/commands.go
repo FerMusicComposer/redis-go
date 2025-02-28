@@ -70,22 +70,35 @@ func getCommand(args []string) string {
 
 	val, ok := storage.Load(args[0])
 	if !ok {
+		fmt.Printf("DEBUG: Key %s not found in storage\n", args[0])
 		return "$-1\r\n"
 	}
 
 	// Type assertion and expiration check
 	sv, ok := val.(*storedValue)
 	if !ok {
-		storage.Delete(args[0]) // Clean up invalid data
+		fmt.Printf("DEBUG: Invalid data format for key %s, cleaning up\n", args[0])
+		storage.Delete(args[0])
 		return "$-1\r\n"
 	}
 
 	// Check expiration if set
-	if !sv.expiresAt.IsZero() && time.Now().After(sv.expiresAt) {
-		storage.Delete(args[0])
-		return "$-1\r\n" // Null bulk string for missing keys
+	if !sv.expiresAt.IsZero() {
+		currentTime := time.Now()
+		if currentTime.After(sv.expiresAt) {
+			fmt.Printf("DEBUG: Key %s expired at %v (current time: %v)\n",
+				args[0], sv.expiresAt, currentTime)
+			storage.Delete(args[0])
+			return "$-1\r\n" // Null bulk string for missing keys
+		} else {
+			fmt.Printf("DEBUG: Key %s not expired (expires at %v, current time: %v)\n",
+				args[0], sv.expiresAt, currentTime)
+		}
+	} else {
+		fmt.Printf("DEBUG: Key %s has no expiration\n", args[0])
 	}
 
+	fmt.Printf("DEBUG: Returning value for key %s: %s\n", args[0], sv.value)
 	return fmt.Sprintf("$%d\r\n%s\r\n", len(sv.value), sv.value)
 }
 
