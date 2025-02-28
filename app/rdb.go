@@ -207,8 +207,24 @@ func parseDatabase(file io.ReadSeeker) error {
 			fmt.Println("DEBUG: Reached end of RDB file")
 			return nil
 
-		case 0xEF, 0x12, 0x8A: // Skip these bytes
-			fmt.Printf("DEBUG: Skipping byte: 0x%x\n", b)
+		case 0xEF, 0x12, 0x8A, 0xC7:
+			// These are likely encoding type markers or special RDB type indicators
+			fmt.Printf("DEBUG: Encountered special byte: 0x%x, attempting to skip\n", b)
+
+			// Try to skip the entry
+			key, err := readStringEncoded(file)
+			if err != nil {
+				fmt.Printf("DEBUG: Failed to read key for special byte 0x%x: %v\n", b, err)
+				continue
+			}
+
+			// Skip the value for this special type
+			_, err = readStringEncoded(file)
+			if err != nil {
+				fmt.Printf("DEBUG: Failed to read value for special byte 0x%x: %v\n", b, err)
+			}
+
+			fmt.Printf("DEBUG: Skipped entry with key: %s for special byte 0x%x\n", key, b)
 			continue
 
 		default:
@@ -219,7 +235,21 @@ func parseDatabase(file io.ReadSeeker) error {
 		// Step 4: Validate value type
 		// For this stage, we only handle string values (type 0)
 		if valueType != 0 {
-			return fmt.Errorf("unsupported value type: 0x%x", valueType)
+			fmt.Printf("DEBUG: Encountered unsupported value type: 0x%x, attempting to skip\n", valueType)
+
+			// Try to read and skip the key and value
+			key, err := readStringEncoded(file)
+			if err != nil {
+				return fmt.Errorf("failed to read key for unsupported type 0x%x: %w", valueType, err)
+			}
+
+			_, err = readStringEncoded(file)
+			if err != nil {
+				return fmt.Errorf("failed to read value for unsupported type 0x%x: %w", valueType, err)
+			}
+
+			fmt.Printf("DEBUG: Skipped entry with key: %s for unsupported type 0x%x\n", key, valueType)
+			continue
 		}
 
 		// Step 5: Read key and value
