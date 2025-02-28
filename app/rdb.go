@@ -207,7 +207,7 @@ func parseDatabase(file io.ReadSeeker) error {
 			fmt.Println("DEBUG: Reached end of RDB file")
 			return nil
 
-		case 0xEF, 0x12: // Skip these bytes
+		case 0xEF, 0x12, 0x8A: // Skip these bytes
 			fmt.Printf("DEBUG: Skipping byte: 0x%x\n", b)
 			continue
 
