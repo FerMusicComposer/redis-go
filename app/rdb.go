@@ -211,20 +211,12 @@ func parseDatabase(file io.ReadSeeker) error {
 			// These are likely encoding type markers or special RDB type indicators
 			fmt.Printf("DEBUG: Encountered special byte: 0x%x, attempting to skip\n", b)
 
-			// Try to skip the entry
-			key, err := readStringEncoded(file)
+			nextByte, err := readByte(file)
 			if err != nil {
-				fmt.Printf("DEBUG: Failed to read key for special byte 0x%x: %v\n", b, err)
-				continue
+				fmt.Printf("DEBUG: Could not read next byte after 0x%x\n", b)
+				return nil
 			}
-
-			// Skip the value for this special type
-			_, err = readStringEncoded(file)
-			if err != nil {
-				fmt.Printf("DEBUG: Failed to read value for special byte 0x%x: %v\n", b, err)
-			}
-
-			fmt.Printf("DEBUG: Skipped entry with key: %s for special byte 0x%x\n", key, b)
+			fmt.Printf("DEBUG: Next byte after special encoding: 0x%x\n", nextByte)
 			continue
 
 		default:
