@@ -207,7 +207,7 @@ func parseDatabase(file io.ReadSeeker) error {
 			fmt.Println("DEBUG: Reached end of RDB file")
 			return nil
 
-		case 0xEF, 0x12, 0x8A, 0xC7:
+		case 0xEF, 0x12, 0x8A, 0xC7, 0x28:
 			// These are likely encoding type markers or special RDB type indicators
 			fmt.Printf("DEBUG: Encountered special byte: 0x%x, attempting to skip\n", b)
 
