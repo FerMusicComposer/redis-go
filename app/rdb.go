@@ -224,7 +224,7 @@ func parseDatabase(file io.ReadSeeker) error {
 			valueType = b
 		}
 
-		// Step 4: Validate value type
+		// Step 4: Validate value type.
 		// For this stage, we only handle string values (type 0)
 		if valueType != 0 {
 			fmt.Printf("DEBUG: Encountered unsupported value type: 0x%x, attempting to skip\n", valueType)
